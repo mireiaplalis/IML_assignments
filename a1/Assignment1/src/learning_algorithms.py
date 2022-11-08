@@ -3,7 +3,8 @@ import os
 import numpy as np
 from perceptron import Perceptron
 from boosting import BoostingAlgorithm
-
+import os 
+import argparse
 """ Load the dataset
 Dataset (Numpy npz file)
 |- features (Numpy.ndarray)
@@ -12,7 +13,7 @@ Dataset (Numpy npz file)
 The data is also provided in csv format.
 """
 
-def load_data(file_name='./dataset1.npz'):
+def load_data(file_name='../data/dataset1.npz'):
     """ Load the Numpy npz format dataset 
     Args:
         file_name (string): name and path to the dataset (dataset1.npz, dataset2.npz, dataset3.npz)
@@ -20,13 +21,25 @@ def load_data(file_name='./dataset1.npz'):
         X (Numpy.ndarray): features
         y (Numpy.ndarray): 1D labels
     """
-    import numpy as np
     data = np.load(file_name)
     X, y = data['features'], data['labels']
     return X, y
 
+def score_function(y_gth, y_pred):
+    return 1 - np.sum(y_gth.reshape(-1,1) != y_pred) / y_gth.size
 
-def run(**kwargs):
+def prepare_data(filename):
+    X, y =load_data(file_name=filename)
+    n = len(y)
+    train_n = int(0.8 * n)
+    perm_ind = np.random.permutation(n)
+    train_X = X[perm_ind[:train_n]]
+    train_y = y[perm_ind[:train_n]]
+    test_X = X[perm_ind[train_n:]]
+    test_y = y[perm_ind[train_n:]]
+    return train_X, train_y, test_X, test_y
+
+def run_base(train_X, train_y, test_X, test_y, max_iter, alpha0):
     """ Single run of your classifier
     # Load the data
     X, y = load_data()
@@ -43,12 +56,44 @@ def run(**kwargs):
     y_pred = base.predict(X_test, "other parameters")
     score = SCORING(y_pred, y_test)
     """
-    pass
+    base = Perceptron(alpha0=alpha0, max_iter=max_iter)
+    base.fit(train_X, train_y)
+    y_pred = base.predict(test_X)
+    score = score_function(test_y, y_pred)
+    print("Base score = ", score)
+    return score
+
+def run_boosting(train_X, train_y, test_X, test_y, n_estimators, alpha0, max_iter, 
+                sampling_percentage):
+    boosting = BoostingAlgorithm(n_estimators=n_estimators, alpha0=alpha0, max_iter=max_iter,
+                                 sampling_percentage=sampling_percentage, sample_n=len(train_y))
+    boosting.fit(train_X, train_y)
+    y_pred = boosting.predict(test_X)
+    score = score_function(test_y, y_pred)
+    print("Boosting score = ", score)
+    return score
 
 if __name__=='__main__':
-    # TODO: Parse arguments. Dataset, learning rate, max iter...
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset', type=int, choices=[1, 2, 3], default=1, required=False)
+    parser.add_argument('--alpha0', type=float, default=1e-3, required=False)
+    parser.add_argument('--max_iter', type=int, default=100, required=False)
+    parser.add_argument('--n_estimators', type=int, default=10, required=False)
+    parser.add_argument('--sampling_percentage', type=float, default=0.8, required=False)
 
-    # Load dataset 1 by default
-    X, y =load_data()
-    print(X.shape)
-    print(y.shape)
+    args = parser.parse_args()
+    dataset = args.dataset
+    alpha0 = args.alpha0
+    max_iter = args.max_iter
+    n_estimators = args.n_estimators
+    sampling_percentage = args.sampling_percentage
+    
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    file = f'../data/dataset{dataset}.npz'
+    file_path = os.path.join(dir_path, file)
+    train_X, train_y, test_X, test_y = prepare_data(file_path)
+
+
+    perceptron_score = run_base(train_X, train_y, test_X, test_y, max_iter, alpha0)
+    boosting_score = run_boosting(train_X, train_y, test_X, test_y, n_estimators, alpha0, 
+                                  max_iter, sampling_percentage)
