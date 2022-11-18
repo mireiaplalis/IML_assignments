@@ -1,6 +1,9 @@
 from perceptron import Perceptron
 import numpy as np
 
+# TODO: Compare different ways of updating the sample weights
+# TODO: Implement another boosting method
+
 class BoostingAlgorithm:
     # Implement your boosting algorithm here
     def __init__(self, n_estimators, alpha0, max_iter, sampling_percentage, sample_n, n_inputs, **kwargs):
@@ -19,6 +22,8 @@ class BoostingAlgorithm:
         self.n_inputs = n_inputs
         self.estimators = []
         self.performances = []
+        self.eps = 1e-10
+        self.plot = False
 
     def error(self, missclassified):
         error = np.sum(missclassified * self.sample_weights) / np.sum(self.sample_weights)
@@ -42,19 +47,15 @@ class BoostingAlgorithm:
             #import pdb; pdb.set_trace()
             missclassified = (y.reshape(-1,1) != base_i.predict(X))
             error_i = self.error(missclassified)
-            if error_i != 0.0:
-                performance_i = np.log((1 - error_i) / error_i)
-            else:
-                performance_i = 0
+            performance_i = np.log((1 - error_i + self.eps) / (error_i + self.eps))
             self.estimators.append(base_i)
             self.performances.append(performance_i)
             self.sample_weights *= np.exp(performance_i * (missclassified * 2 - 1))
-            # else:
-            #     break
+            self.sample_weights /= np.sum(self.sample_weights)
         self.performances = np.array(self.performances)
 
 
-    def predict(self, x, **kwargs):
+    def predict(self, x):
         """ Implement the prediction strategy here
         Args:
             x (Numpy.ndarray, list, Numpy.array, etc.): The input data
@@ -65,5 +66,8 @@ class BoostingAlgorithm:
         # import pdb;
         # pdb.set_trace()
         predictions = np.array([base.predict(x).flatten() for base in self.estimators]).T
-        final_pred = np.sign(np.sum(predictions * self.performances, axis=1) / np.sum(self.performances))
+        if self.plot:
+            final_pred = (np.sign(np.sum(predictions * self.performances, axis=1) / np.sum(self.performances)) + 1) / 2
+        else:
+            final_pred = np.sign(np.sum(predictions * self.performances, axis=1) / np.sum(self.performances))
         return final_pred.reshape(-1,1)

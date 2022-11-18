@@ -1,8 +1,10 @@
 import numpy as np
 
+# TODO: try different initialization strategies
+
 class Perceptron:
     # Implement your base learner here
-    def __init__(self, alpha0, max_iter, **kwargs):
+    def __init__(self, alpha0, max_iter):
         """ Initialize the parameters here 
         Args:
             learning_rate (float or a collection of floats): your learning rate
@@ -19,6 +21,7 @@ class Perceptron:
         self.max_iter = max_iter
         self.alpha0 = alpha0
         self.weights =  np.random.randn(3,1)
+        self.plot = False
 
     def fit(self, X, y, **kwargs):
         """ Implement the training strategy here
@@ -40,7 +43,7 @@ class Perceptron:
             self.learning_rate -= self.alpha0 / self.max_iter
         return
 
-    def predict(self, x, **kwargs) -> np.ndarray:
+    def predict(self, x) -> np.ndarray:
         """ Implement the prediction strategy here
         Args:
             x (Numpy.ndarray, list, Numpy.array, etc.): The input data
@@ -52,6 +55,9 @@ class Perceptron:
             x = x.reshape(1,-1)
         ones = np.ones(x.shape[0]).reshape(-1,1)
         biased_X = np.concatenate([x, ones], axis=1)
-        pred = np.sign(np.matmul(biased_X, self.weights))
+        if self.plot:
+            pred = (np.sign(np.matmul(biased_X, self.weights)) + 1) / 2
+        else:
+            pred = np.sign(np.matmul(biased_X, self.weights))
         return pred
 
