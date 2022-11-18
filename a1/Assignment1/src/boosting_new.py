@@ -1,9 +1,6 @@
 from perceptron import Perceptron
 import numpy as np
 
-# TODO: Compare different ways of updating the sample weights
-# TODO: Implement another boosting method
-
 class BoostingAlgorithm:
     # Implement your boosting algorithm here
     def __init__(self, n_estimators, alpha0, max_iter, sampling_percentage, sample_n, n_inputs, **kwargs):
@@ -22,8 +19,6 @@ class BoostingAlgorithm:
         self.n_inputs = n_inputs
         self.estimators = []
         self.performances = []
-        self.eps = 1e-10
-        self.plot = False
 
     def error(self, missclassified):
         error = np.sum(missclassified * self.sample_weights) / np.sum(self.sample_weights)
@@ -38,8 +33,7 @@ class BoostingAlgorithm:
         """ 
         total_samples = y.size
         for _ in range(self.n_estimators):
-            n_features = len(X[0]-1)
-            base_i = Perceptron(alpha0=self.alpha0, max_iter=self.max_iter, n_features=n_features)
+            base_i = Perceptron(alpha0=self.alpha0, max_iter=self.max_iter, n_inputs=self.n_inputs)
             sample_inds = np.random.choice(total_samples, int(total_samples * self.sampling_percentage),
                                        replace=True, p=self.sample_weights.flatten())
             train_X = X[sample_inds]
@@ -48,15 +42,19 @@ class BoostingAlgorithm:
             #import pdb; pdb.set_trace()
             missclassified = (y.reshape(-1,1) != base_i.predict(X))
             error_i = self.error(missclassified)
-            performance_i = np.log((1 - error_i + self.eps) / (error_i + self.eps))
+            if error_i != 0.0:
+                performance_i = np.log((1 - error_i) / error_i)
+            else:
+                performance_i = 0
             self.estimators.append(base_i)
             self.performances.append(performance_i)
             self.sample_weights *= np.exp(performance_i * (missclassified * 2 - 1))
-            self.sample_weights /= np.sum(self.sample_weights)
+            # else:
+            #     break
         self.performances = np.array(self.performances)
 
 
-    def predict(self, x):
+    def predict(self, x, **kwargs):
         """ Implement the prediction strategy here
         Args:
             x (Numpy.ndarray, list, Numpy.array, etc.): The input data
@@ -64,9 +62,8 @@ class BoostingAlgorithm:
         Return(s):
             The prediction value, namely, class label(s)
         """
+        # import pdb;
+        # pdb.set_trace()
         predictions = np.array([base.predict(x).flatten() for base in self.estimators]).T
-        if self.plot:
-            final_pred = (np.sign(np.sum(predictions * self.performances, axis=1) / np.sum(self.performances)) + 1) / 2
-        else:
-            final_pred = np.sign(np.sum(predictions * self.performances, axis=1) / np.sum(self.performances))
+        final_pred = np.sign(np.sum(predictions * self.performances, axis=1) / np.sum(self.performances))
         return final_pred.reshape(-1,1)

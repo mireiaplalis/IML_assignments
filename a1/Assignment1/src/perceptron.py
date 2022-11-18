@@ -4,7 +4,7 @@ import numpy as np
 
 class Perceptron:
     # Implement your base learner here
-    def __init__(self, alpha0, max_iter):
+    def __init__(self, alpha0, max_iter, n_features):
         """ Initialize the parameters here 
         Args:
             learning_rate (float or a collection of floats): your learning rate
@@ -20,7 +20,7 @@ class Perceptron:
         self.learning_rate = alpha0
         self.max_iter = max_iter
         self.alpha0 = alpha0
-        self.weights =  np.random.randn(3,1)
+        self.weights =  np.random.randn(n_features + 1,1)
         self.plot = False
 
     def fit(self, X, y, **kwargs):
