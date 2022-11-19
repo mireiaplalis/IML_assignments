@@ -106,11 +106,11 @@ def test_learning_rate(max_iter):
     plt.figure()
     for i, d in enumerate(datasets):
         scores = []
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        file = f'../data/dataset{d}.npz'
+        file_path = os.path.join(dir_path, file)
+        train_X, train_y, test_X, test_y = prepare_data(file_path)
         for lr in learning_rates:
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-            file = f'../data/dataset{d}.npz'
-            file_path = os.path.join(dir_path, file)
-            train_X, train_y, test_X, test_y = prepare_data(file_path)
             score_i = [run_base(train_X, train_y, test_X, test_y, max_iter, lr, d, False) for _ in range(50)]
             scores.append(np.mean(score_i))
         plt.plot(np.array(learning_rates), np.array(scores), label=f"Dataset {d}")
@@ -129,11 +129,11 @@ def test_n_estimators(alpha0, max_iter, sampling_percentage):
     plt.figure()
     for i, d in enumerate(datasets):
         scores = []
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        file = f'../data/dataset{d}.npz'
+        file_path = os.path.join(dir_path, file)
+        train_X, train_y, test_X, test_y = prepare_data(file_path)
         for n in n_estimators:
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-            file = f'../data/dataset{d}.npz'
-            file_path = os.path.join(dir_path, file)
-            train_X, train_y, test_X, test_y = prepare_data(file_path)
             score_i = [run_boosting(train_X, train_y, test_X, test_y, n, alpha0, max_iter, sampling_percentage, d, False) for _ in range(50)]
             scores.append(np.mean(score_i))
         plt.plot(np.array(n_estimators), np.array(scores), label=f"Dataset {d}")
@@ -152,12 +152,12 @@ def test_sampling_percentage(alpha0, max_iter, n_estimators):
     plt.figure()
     for i, d in enumerate(datasets):
         scores = []
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        file = f'../data/dataset{d}.npz'
+        file_path = os.path.join(dir_path, file)
+        train_X, train_y, test_X, test_y = prepare_data(file_path)
         for s in sampling_percentages:
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-            file = f'../data/dataset{d}.npz'
-            file_path = os.path.join(dir_path, file)
-            train_X, train_y, test_X, test_y = prepare_data(file_path)
-            score_i = [run_boosting(train_X, train_y, test_X, test_y, n_estimators, alpha0, max_iter, s, d, False) for _ in range(50)]
+            score_i = [run_boosting(train_X, train_y, test_X, test_y, n_estimators, alpha0, max_iter, s, d, False) for _ in range(5)]
             scores.append(np.mean(score_i))
         plt.plot(np.array(sampling_percentages), np.array(scores), label=f"Dataset {d}")
     plt.title("Boosting accuracy per sampling percentage", fontsize=15, pad=15)
@@ -185,15 +185,42 @@ def accuracy_comparison(alpha0, max_iter, sampling_percentage):
         json.dump(scores, f, sort_keys=True, indent=4)
         f.write('\n')   
 
+def performance_per_iteration(alpha0, max_iter, n_estimators, sampling_percentage):
+    datasets = [1, 2, 3, 4]
+    update_methods = ["default", "restart", "only_increase"]
+    fig, ax = plt.subplots(1, 4, figsize=(35, 10))
+    for i, d in enumerate(datasets):
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        file = f'../data/dataset{d}.npz'
+        file_path = os.path.join(dir_path, file)
+        train_X, train_y, test_X, test_y = prepare_data(file_path)
+        for j, m in enumerate(update_methods):
+            scores = []
+            boosting = BoostingAlgorithm(n_estimators=1, alpha0=alpha0, max_iter=max_iter,
+                                        sampling_percentage=sampling_percentage, sample_n=len(train_y))
+            scores = []
+            for _ in range(n_estimators):
+                boosting.fit(train_X, train_y)
+                y_pred = boosting.predict(test_X)
+                scores.append(score_function(test_y, y_pred))
+            ax[i].plot(np.arange(n_estimators), np.array(scores), label=f"Update method {j+1}")
+        ax[i].set_xlabel("Iteration", fontsize=25)
+        ax[i].set_ylabel("Accuracy", fontsize=25)
+        ax[i].set_title(f"Dataset {d}", fontsize=30, pad=15)
+        ax[i].tick_params(axis='both', labelsize=15)
+        ax[i].legend(fontsize=25)
+    fig.suptitle("Boosting accuracy per boosting iteration", fontsize=35, y=0.99)
+    plt.savefig(f"results/iteration_acc.svg")
+    plt.show()    
 
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=int, choices=[1, 2, 3, 4], default=1, required=False)
-    parser.add_argument('--alpha0', type=float, default=1e-3, required=False)
+    parser.add_argument('--alpha0', type=float, default=1e-2, required=False)
     parser.add_argument('--max_iter', type=int, default=1000, required=False)
     parser.add_argument('--n_estimators', type=int, default=10, required=False)
-    parser.add_argument('--sampling_percentage', type=float, default=0.8, required=False)
+    parser.add_argument('--sampling_percentage', type=float, default=0.1, required=False)
 
     args = parser.parse_args()
     dataset = args.dataset
@@ -214,5 +241,6 @@ if __name__=='__main__':
     #                               max_iter, sampling_percentage, dataset)
 
     # accuracy_comparison(alpha0, max_iter, sampling_percentage)
-    test_n_estimators(alpha0, max_iter, sampling_percentage)
-    # test_sampling_percentage(alpha0, max_iter, n_estimators)
+    # test_n_estimators(alpha0, max_iter, sampling_percentage)
+    test_sampling_percentage(alpha0, max_iter, n_estimators)
+    # performance_per_iteration(alpha0, max_iter, n_estimators, sampling_percentage)

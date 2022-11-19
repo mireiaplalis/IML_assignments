@@ -6,7 +6,7 @@ import numpy as np
 
 class BoostingAlgorithm:
     # Implement your boosting algorithm here
-    def __init__(self, n_estimators, alpha0, max_iter, sampling_percentage, sample_n, n_inputs, **kwargs):
+    def __init__(self, n_estimators, alpha0, max_iter, sampling_percentage, sample_n, update="default"):
         """ Initialize the parameters here 
         Args:
             n_estimators (int): number of base perceptron models
@@ -19,11 +19,12 @@ class BoostingAlgorithm:
         self.max_iter = max_iter
         self.sampling_percentage = sampling_percentage
         self.sample_weights = np.full((sample_n,1), 1/sample_n)
-        self.n_inputs = n_inputs
+        self.sample_n = sample_n
         self.estimators = []
-        self.performances = []
+        self.performances = np.array([])
         self.eps = 1e-10
         self.plot = False
+        self.update = update
 
     def error(self, missclassified):
         error = np.sum(missclassified * self.sample_weights) / np.sum(self.sample_weights)
@@ -42,15 +43,18 @@ class BoostingAlgorithm:
             base_i = Perceptron(alpha0=self.alpha0, max_iter=self.max_iter, n_features=n_features)
             sample_inds = np.random.choice(total_samples, int(total_samples * self.sampling_percentage),
                                        replace=True, p=self.sample_weights.flatten())
+            if self.update == "restart":
+                self.sample_weights = np.full((self.sample_n,1), 1/self.sample_n)
             train_X = X[sample_inds]
             train_y = y[sample_inds]
             base_i.fit(train_X, train_y)
-            #import pdb; pdb.set_trace()
             missclassified = (y.reshape(-1,1) != base_i.predict(X))
             error_i = self.error(missclassified)
-            performance_i = np.log((1 - error_i + self.eps) / (error_i + self.eps))
+            performance_i = 0.5 * np.log((1 - error_i + self.eps) / (error_i + self.eps))
             self.estimators.append(base_i)
-            self.performances.append(performance_i)
+            self.performances = np.append(self.performances, performance_i)
+            if self.update == "only_increase":
+                self.sample_weights *= np.exp(performance_i * missclassified)
             self.sample_weights *= np.exp(performance_i * (missclassified * 2 - 1))
             self.sample_weights /= np.sum(self.sample_weights)
         self.performances = np.array(self.performances)
