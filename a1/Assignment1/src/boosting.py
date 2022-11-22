@@ -1,18 +1,13 @@
 from perceptron import Perceptron
 import numpy as np
 
-# TODO: Compare different ways of updating the sample weights
-# TODO: Implement another boosting method
 
 class BoostingAlgorithm:
-    # Implement your boosting algorithm here
     def __init__(self, n_estimators, alpha0, max_iter, sampling_percentage, sample_n, update="default"):
-        """ Initialize the parameters here 
+        """ Initialization of the parameters
         Args:
             n_estimators (int): number of base perceptron models
-            Other parameters of your choice
-        
-        Think smartly on how to utilize multiple perceptron models
+            Other parameters of your choice        
         """
         self.n_estimators = n_estimators
         self.alpha0 = alpha0
@@ -30,12 +25,11 @@ class BoostingAlgorithm:
         error = np.sum(missclassified * self.sample_weights) / np.sum(self.sample_weights)
         return error
 
-    def fit(self, X, y, **kwargs):
-        """ Implement the training strategy here
+    def fit(self, X, y):
+        """ Implementation of the training strategy
         Args:
             X (Numpy.ndarray, list, etc.): The training data
             y (Numpy.ndarray, list, etc.): The labels
-            Other parameters of your choice
         """ 
         total_samples = y.size
         for _ in range(self.n_estimators):
@@ -61,7 +55,7 @@ class BoostingAlgorithm:
 
 
     def predict(self, x):
-        """ Implement the prediction strategy here
+        """ Implementation of the prediction strategy
         Args:
             x (Numpy.ndarray, list, Numpy.array, etc.): The input data
             Other parameters of your choice
