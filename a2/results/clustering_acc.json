@@ -1,0 +1,16 @@
+{
+    "red_after": {
+        "KMeans": {
+            "autoencoder": 0.396,
+            "pca": 0.395875,
+            "umap": 0.3960625
+        }
+    },
+    "red_before": {
+        "KMeans": {
+            "autoencoder": 0.3965,
+            "pca": 0.3965625,
+            "umap": 0.3964375
+        }
+    }
+}
