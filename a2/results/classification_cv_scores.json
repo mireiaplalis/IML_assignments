@@ -1,0 +1,5 @@
+{
+    "AdaBoostClassifier": 0.4,
+    "LogisticRegression": 0.5,
+    "RandomForestClassifier": 0.4
+}
