@@ -8,23 +8,19 @@ import random
 from sknn.ae import AutoEncoder
 from A2_utils import data_exploration, data_preprocessing, data_preprocessing_for_cv
 from A2_clustering import dimensionality_reduction_fit_transform
+from decision_regions_custom import plot_decision_regions
 from sklearn.model_selection import KFold, cross_val_score
+from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import AdaBoostClassifier
 import matplotlib.pyplot as plt
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
-from mlxtend.plotting import plot_decision_regions  
 
-# THINGS TO EXPLAIN: outlier detection, scaling variables, removing features
-# KMediods has scalability problems. DBSCAN does not work with fixed number of clusters
-# We only plot a subset of the val data
-
-# TODO: autoencoder
 
 def get_cv_scores(classifiers, X, y):
     k_folds = KFold(n_splits = 5)
@@ -81,75 +77,61 @@ def study_nestimators_RF(X, y):
     model = RandomForestClassifier
     visualize_hp_influence(model, X, y, default_hp, studied_hp, study_range)
 
-
-def plot_regions(algorithm, data_X, data_X_2d, data_y, title):
+def plot_regions(algorithm, dim_red, data_X, data_y, title):
     # Plotting decision regions
-    plt.figure(figsize=(7,6))
+    fig = plt.figure(figsize=(7,6))
     algorithm.plot = True
-    plot_decision_regions(data_X, data_X_2d, data_y, clf=algorithm, legend=0, colors='blue,red,orange')
+    plot_decision_regions(data_X[:300], data_y[:300], clf=algorithm, dim_red=dim_red, legend=0, colors='blue,red,orange')
     algorithm.plot = False
     # Adding axes annotations
-    plt.xlabel('Feature 1', fontsize=13)
-    plt.ylabel('Feature 2', fontsize=13)
-    plt.title("Decision regions for " + title,  fontsize=15, pad=15)
-    plt.savefig("results/"+ title.replace(" ", "_") +".svg")
+    plt.xlabel('Feature 1', fontsize=17)
+    plt.ylabel('Feature 2', fontsize=17)
+    plt.title("Decision regions for \n" + title,  fontsize=25, pad=15)
+    fig_title = fig.axes[0].title
+    plt.savefig("results/decisior_reg_"+ title.replace(" ", "_") +".svg", bbox_extra_artists=(fig_title,), bbox_inches='tight')
     plt.show()
 
 
 def decision_regions(X_train, y_train, X_test, y_test, classifiers):
     pca, x_train_pca = dimensionality_reduction_fit_transform(PCA, 2, X_train)
-    umap_ins, x_train_umap = dimensionality_reduction_fit_transform(umap.UMAP, 2, X_train) #(umap.UMAP, 2, x)
-    ae, x_train_autoencoder = dimensionality_reduction_fit_transform(AutoEncoder, 2, X_train) #(TSNE, 2, x)
-
     X_test_pca = pca.transform(X_test)
-    X_test_umap = umap_ins.transform(X_test)
-    X_test_autoencoder = ae.transform(X_test)
 
     for clf in classifiers:
-        plot_regions(clf, X_test, X_test_pca, y_test, clf.__class__.__name__)
+        print(clf.__class__.__name__)
+        clf.fit(X_train, y_train)
+        plot_regions(clf, pca, pca.transform(X_test), y_test.astype(np.int_), clf.__class__.__name__)
 
 
 if __name__ == '__main__':
     data = pd.read_csv("A2_data.csv")
+    data_exploration(data)    
+
     np.random.seed(0)
     random.seed(0)
-    X, y = data_preprocessing_for_cv(data)
-    print("Hello")
-    import pdb; pdb.set_trace()
-    X_train, X_test, y_train, y_test = data_preprocessing(data)
-    print("Hello2")
+    X_train_cv, X_test_cv, y_train_cv, y_test_cv  = data_preprocessing_for_cv(data)
+    X_train, X_test, y_train, y_test = data_preprocessing(data, int_labels=True)
 
-    #### DEBUG ####
+    # study_nestimators_RF(X_train_cv, y_train_cv)
 
-    X = X[:10]
-    y = y[:10]
+    log_reg = LogisticRegression(solver='lbfgs', C=10**10, multi_class='multinomial', class_weight='balanced')
+    random_forest = RandomForestClassifier(n_estimators=100, class_weight='balanced')
+    svc_linear = LinearSVC(C=float(1.0), class_weight='balanced')
+    mlp = MLPClassifier(hidden_layer_sizes=(200,100,50,), random_state=1, max_iter=300)
+    dtc = DecisionTreeClassifier(class_weight='balanced')
 
-    X_train = X_train[:10]
-    y_train = y_train[:10]
-    X_test = X_test[:10]
-    y_test = y_test[:10]
-
-
-
-    # study_nestimators_RF(X, y)
-
-    ################
-
-    log_reg = LogisticRegression(solver='lbfgs', C=0.05, multi_class='multinomial', random_state=0, max_iter=1000)
-    random_forest = RandomForestClassifier(n_estimators=100)
-    adaboost = AdaBoostClassifier(n_estimators=50, learning_rate=1)
-    svc = SVC()
-    mlp = MLPClassifier(random_state=1, max_iter=300)
-    dtc = DecisionTreeClassifier()
-
-    classifiers = [log_reg, adaboost, svc, mlp, dtc, random_forest]
-    print("Here")
+    classifiers = [log_reg, svc_linear, mlp, dtc, random_forest]
     decision_regions(X_train, y_train, X_test, y_test, classifiers)
 
-
-    cv_scores = get_cv_scores(classifiers, X, y)
+    cv_scores = get_cv_scores(classifiers, X_train_cv, y_train_cv)
 
     with open(f"./results/classification_cv_scores.json", 'w') as f:
         json.dump(cv_scores, f, sort_keys=True, indent=4)
         f.write('\n')
+
+
+    random_forest = RandomForestClassifier(n_estimators=100, class_weight='balanced')
+    random_forest.fit(X_train, y_train)
+    y_pred = random_forest.predict(X_test)
+    rf_test_acc = accuracy_score(y_test, y_pred)
+    print("Generalization score of the random forest: ", rf_test_acc)
 

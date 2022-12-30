@@ -1,5 +1,7 @@
 {
-    "AdaBoostClassifier": 0.4,
-    "LogisticRegression": 0.5,
-    "RandomForestClassifier": 0.4
+    "DecisionTreeClassifier": 0.8065,
+    "LinearSVC": 0.7383625,
+    "LogisticRegression": 0.6707125000000002,
+    "MLPClassifier": 0.8741875,
+    "RandomForestClassifier": 0.8713124999999999
 }

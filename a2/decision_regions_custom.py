@@ -43,9 +43,9 @@ def get_feature_range_mask(X, filler_feature_values=None, filler_feature_ranges=
 
 def plot_decision_regions(
     X,
-    X_2d,
     y,
     clf,
+    dim_red,
     feature_index=None,
     filler_feature_values=None,
     filler_feature_ranges=None,
@@ -66,88 +66,67 @@ def plot_decision_regions(
     scatter_highlight_kwargs=None,
 ):
     """Plot decision regions of a classifier.
-
     Please note that this functions assumes that class labels are
     labeled consecutively, e.g,. 0, 1, 2, 3, 4, and 5. If you have class
     labels with integer labels > 4, you may want to provide additional colors
     and/or markers as `colors` and `markers` arguments.
     See http://matplotlib.org/examples/color/named_colors.html for more
     information.
-
     Parameters
     ----------
     X : array-like, shape = [n_samples, n_features]
         Feature Matrix.
-
     y : array-like, shape = [n_samples]
         True class labels.
-
     clf : Classifier object.
         Must have a .predict method.
-
     feature_index : array-like (default: (0,) for 1D, (0, 1) otherwise)
         Feature indices to use for plotting. The first index in
         `feature_index` will be on the x-axis, the second index will be
         on the y-axis.
-
     filler_feature_values : dict (default: None)
         Only needed for number features > 2. Dictionary of feature
         index-value pairs for the features not being plotted.
-
     filler_feature_ranges : dict (default: None)
         Only needed for number features > 2. Dictionary of feature
         index-value pairs for the features not being plotted. Will use the
         ranges provided to select training samples for plotting.
-
     ax : matplotlib.axes.Axes (default: None)
         An existing matplotlib Axes. Creates
         one if ax=None.
-
     X_highlight : array-like, shape = [n_samples, n_features] (default: None)
         An array with data points that are used to highlight samples in `X`.
-
     zoom_factor : float (default: 1.0)
         Controls the scale of the x- and y-axis of the decision plot.
-
     hide_spines : bool (default: True)
         Hide axis spines if True.
-
     legend : int (default: 1)
         Integer to specify the legend location.
         No legend if legend is 0.
-
     markers : str (default: 's^oxv<>')
         Scatterplot markers.
-
     colors : str (default: 'red,blue,limegreen,gray,cyan')
         Comma separated list of colors.
-
     scatter_kwargs : dict (default: None)
         Keyword arguments for underlying matplotlib scatter function.
-
     contourf_kwargs : dict (default: None)
         Keyword arguments for underlying matplotlib contourf function.
-
     contour_kwargs : dict (default: None)
         Keyword arguments for underlying matplotlib contour function
         (which draws the lines between decision regions).
-
     scatter_highlight_kwargs : dict (default: None)
         Keyword arguments for underlying matplotlib scatter function.
-
     Returns
     ---------
     ax : matplotlib.axes.Axes object
-
     Examples
     -----------
     For usage examples, please see
     http://rasbt.github.io/mlxtend/user_guide/plotting/plot_decision_regions/
-
     """
 
-    check_Xy(X_2d, y, y_int=True)  # Validate X and y arrays
-    dim = X_2d.shape[1]
+    check_Xy(X, y, y_int=True)  # Validate X and y arrays
+    dim = X.shape[1]
 
     if ax is None:
         ax = plt.gca()
@@ -173,11 +152,11 @@ def plot_decision_regions(
                 "only has two dimensions."
             )
         try:
-            X_2d[:, x_index], X_2d[:, y_index]
+            X[:, x_index], X[:, y_index]
         except IndexError:
             raise IndexError(
                 "feature_index values out of range. X.shape is {}, but "
-                "feature_index is {}".format(X_2d.shape, feature_index)
+                "feature_index is {}".format(X.shape, feature_index)
             )
     else:
         feature_index = (0, 1)
@@ -220,15 +199,15 @@ def plot_decision_regions(
 
     # Get minimum and maximum
     x_min, x_max = (
-        X_2d[:, x_index].min() - 1.0 / zoom_factor,
-        X_2d[:, x_index].max() + 1.0 / zoom_factor,
+        X[:, x_index].min() - 1.0 / zoom_factor,
+        X[:, x_index].max() + 1.0 / zoom_factor,
     )
     if dim == 1:
         y_min, y_max = -1, 1
     else:
         y_min, y_max = (
-            X_2d[:, y_index].min() - 1.0 / zoom_factor,
-            X_2d[:, y_index].max() + 1.0 / zoom_factor,
+            X[:, y_index].min() - 1.0 / zoom_factor,
+            X[:, y_index].max() + 1.0 / zoom_factor,
         )
 
     xnum, ynum = plt.gcf().dpi * plt.gcf().get_size_inches()
@@ -240,14 +219,9 @@ def plot_decision_regions(
     if dim == 1:
         X_predict = np.array([xx.ravel()]).T
     else:
-        X_grid = np.array([xx.ravel(), yy.ravel()]).T
-        X_predict = np.zeros((X_grid.shape[0], dim))
-        X_predict[:, x_index] = X_grid[:, 0]
-        X_predict[:, y_index] = X_grid[:, 1]
-        if dim > 2:
-            for feature_idx in filler_feature_values:
-                X_predict[:, feature_idx] = filler_feature_values[feature_idx]
-    Z = clf.predict(X_predict.astype(X.dtype))
+        X_predict = np.array([xx.ravel(), yy.ravel()]).T
+    X_predict_exp = dim_red.inverse_transform(X_predict.astype(X.dtype))
+    Z = clf.predict(X_predict_exp)
     Z = Z.reshape(xx.shape)
     # Plot decisoin region
     # Make sure contourf_kwargs has backwards compatible defaults
@@ -281,20 +255,20 @@ def plot_decision_regions(
     )
     for idx, c in enumerate(np.unique(y)):
         if dim == 1:
-            y_data = [0 for i in X_2d[y == c]]
-            x_data = X_2d[y == c]
+            y_data = [0 for i in X[y == c]]
+            x_data = X[y == c]
         elif dim == 2:
-            y_data = X_2d[y == c, y_index]
-            x_data = X_2d[y == c, x_index]
+            y_data = X[y == c, y_index]
+            x_data = X[y == c, x_index]
         elif dim > 2 and filler_feature_ranges is not None:
             class_mask = y == c
             feature_range_mask = get_feature_range_mask(
-                X_2d,
+                X,
                 filler_feature_values=filler_feature_values,
                 filler_feature_ranges=filler_feature_ranges,
             )
-            y_data = X_2d[class_mask & feature_range_mask, y_index]
-            x_data = X_2d[class_mask & feature_range_mask, x_index]
+            y_data = X[class_mask & feature_range_mask, y_index]
+            x_data = X[class_mask & feature_range_mask, x_index]
         else:
             continue
 

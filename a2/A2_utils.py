@@ -19,15 +19,22 @@ from sknn.ae import AutoEncoder
 # KMediods has scalability problems. DBSCAN does not work with fixed number of clusters
 # We only plot a subset of the val data
 
-# TODO: autoencoder
 
 def data_exploration(data):
     print(data.info())
     print(data.head())
+    print("Occurrences of each class: \n", data['class'].value_counts())
     print("Presence of missing values: ", data.isnull().values.any())
 
-def data_preprocessing(data_pd):
+
+def data_preprocessing(data_pd, int_labels=False, filter_outliers=False):
     data_pd = data_pd.drop(['field_ID', 'MJD', 'plate'], axis=1)
+
+    if int_labels:
+        data_pd = data_pd.replace('GALAXY', int(0))
+        data_pd = data_pd.replace('QSO', int(1))
+        data_pd = data_pd.replace('STAR', int(2))
+
     data_np = data_pd.to_numpy()
     X = data_np[:, :-1]
     y = data_np[:, -1]
@@ -39,19 +46,23 @@ def data_preprocessing(data_pd):
     X_test = scaler.transform(X_test)
 
     # Outlier detection
-    outlier_det = IsolationForest(n_estimators=10, warm_start=True)
-    outlier_det.fit(X_train)
-    X_train = X_train[np.where(outlier_det.predict(X_train) == 1)]
-    y_train = y_train[np.where(outlier_det.predict(X_train) == 1)]
+    if filter_outliers:
+        outlier_det = IsolationForest(n_estimators=10, warm_start=True)
+        outlier_det.fit(X_train)
+        X_train = X_train[np.where(outlier_det.predict(X_train) == 1)]
+        y_train = y_train[np.where(outlier_det.predict(X_train) == 1)]
+
 
     return X_train, X_test, y_train, y_test
 
 def data_preprocessing_for_cv(data_pd):
     data_pd = data_pd.drop(['field_ID', 'MJD', 'plate'], axis=1)
-    data_pd = data_pd.replace('GALAXY', 0)
-    data_pd = data_pd.replace('QSO', 1)
-    data_pd = data_pd.replace('STAR', 2)
+    data_pd = data_pd.replace('GALAXY', int(0))
+    data_pd = data_pd.replace('QSO', int(1))
+    data_pd = data_pd.replace('STAR', int(2))
     data_np = data_pd.to_numpy()
     X = data_np[:, :-1]
     y = data_np[:, -1]
-    return X, y
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
+
+    return X_train, X_test, y_train, y_test
